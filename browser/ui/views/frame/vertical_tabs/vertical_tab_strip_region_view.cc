@@ -292,9 +292,7 @@ BraveVerticalTabStripRegionView::BraveVerticalTabStripRegionView(
       tab_style_(TabStyle::Get()) {
   // Register this view to handle caption area hit test, so that users can drag
   // the window by dragging the vertical tab strip region.
-  browser_view->browser()
-      ->GetFeatures()
-      .brave_non_client_hit_test_helper()
+  BraveNonClientHitTestHelper::From(browser_view->browser())
       ->RegisterCaptionArea(this);
 
   // As we follow user's choice for vertical tab alignment,
@@ -434,6 +432,21 @@ BraveVerticalTabStripRegionView::~BraveVerticalTabStripRegionView() {
   UpdateLayout();
 }
 
+void BraveVerticalTabStripRegionView::AddedToWidget() {
+  // Retry the placement, in case it was skipped while we weren't attached.
+  if (auto* coordinator = GetPlacementCoordinator(browser_view_)) {
+    coordinator->UpdatePlacement();
+  }
+}
+
+void BraveVerticalTabStripRegionView::RemovedFromWidget() {
+  // Only clear the placement data here, no reparenting: Views may be
+  // mid-iteration tearing down the tree at this point.
+  if (auto* coordinator = GetPlacementCoordinator(browser_view_)) {
+    coordinator->ClearPlacement(TabStripPlacementKind::kVerticalTabStrip);
+  }
+}
+
 void BraveVerticalTabStripRegionView::ToggleState() {
   if (state_ == State::kExpanded) {
     collapsed_pref_.SetValue(true);
@@ -492,8 +505,7 @@ void BraveVerticalTabStripRegionView::StopListeningFullscreenChanges() {
 
 FullscreenController* BraveVerticalTabStripRegionView::GetFullscreenController()
     const {
-  auto* exclusive_access_manager =
-      browser_->GetFeatures().exclusive_access_manager();
+  auto* exclusive_access_manager = ExclusiveAccessManager::From(browser_);
   if (!exclusive_access_manager) {
     return nullptr;
   }

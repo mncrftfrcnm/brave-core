@@ -14,6 +14,7 @@ import("//brave/components/traffic_control/buildflags/buildflags.gni")
 import("//brave/resources/brave_grit.gni")
 import("//build/config/features.gni")
 import("//build/config/locales.gni")
+import("//extensions/buildflags/buildflags.gni")
 import("//pdf/features.gni")
 
 action("generate_command_metadata") {
@@ -80,8 +81,20 @@ brave_grit("brave_generated_resources_grit") {
     "brave_generated_resources.pak",
   ]
 
+  if (translate_genders) {
+    grit_flags = [ "--translate-genders" ]
+  }
+
+  # grit clones every data_package <output> node per gender, including the
+  # lang-less "brave_generated_resources.pak" above.
+  foreach(gender_suffix, gender_suffixes - [ "" ]) {
+    outputs += [ "brave_generated_resources${gender_suffix}.pak" ]
+  }
+
   foreach(locale, all_chrome_locales) {
-    outputs += [ "brave_generated_resources_$locale.pak" ]
+    foreach(gender_suffix, gender_suffixes) {
+      outputs += [ "brave_generated_resources_${locale}${gender_suffix}.pak" ]
+    }
   }
 }
 
@@ -153,6 +166,7 @@ source_set("unit_tests") {
     "//components/compose/core/browser:features",
     "//components/content_settings/core/common:features",
     "//components/contextual_tasks/public:feature_list",
+    "//components/critical_actions/core/browser",
     "//components/device_signals/core/common:features",
     "//components/embedder_support",
     "//components/enterprise/connectors/core",
@@ -194,6 +208,7 @@ source_set("unit_tests") {
     "//components/sync/base:features",
     "//components/user_education/common",
     "//components/webapps/browser",
+    "//extensions/buildflags",
     "//gpu/config",
     "//pdf:buildflags",
     "//services/device/public/cpp:device_features",
@@ -220,12 +235,14 @@ source_set("unit_tests") {
       "//chrome/browser/ui/views/desktop_capture",
       "//chrome/common:chrome_features",
       "//components/translate/core/common",
-      "//extensions/common",
       "//ui/accessibility:ax_base",
     ]
   }
   if (is_win) {
     deps += [ "//chrome/browser/startup" ]
+  }
+  if (enable_extensions_core) {
+    deps += [ "//extensions/common" ]
   }
   if (enable_brave_vpn_v2_apps) {
     deps += [ "//brave/components/brave_vpn/app/v2/shared" ]

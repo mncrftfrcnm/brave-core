@@ -16,8 +16,8 @@
 #include "brave/components/constants/webui_url_constants.h"
 #include "brave/components/new_tab_takeover/grit/new_tab_takeover_generated_map.h"
 #include "brave/components/ntp_background_images/browser/ntp_background_images_service.h"
-#include "brave/components/ntp_background_images/browser/sponsored_content/new_tab_takeover/dynamic/ntp_sponsored_rich_media_ad_event_handler.h"
-#include "brave/components/ntp_background_images/browser/sponsored_content/new_tab_takeover/ntp_sponsored_images_data.h"
+#include "brave/components/ntp_background_images/browser/sponsored_content/new_tab_takeover/dynamic/ntp_dynamic_new_tab_takeover_ad_event_handler.h"
+#include "brave/components/ntp_background_images/browser/sponsored_content/new_tab_takeover/ntp_sponsored_content_data.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/profiles/profile.h"
@@ -55,11 +55,13 @@ NewTabTakeoverUI::NewTabTakeoverUI(
     content::WebUI* const web_ui,
     ntp_background_images::NTPBackgroundImagesService&
         ntp_background_images_service,
-    std::unique_ptr<ntp_background_images::NTPSponsoredRichMediaAdEventHandler>
-        rich_media_ad_event_handler)
+    std::unique_ptr<
+        ntp_background_images::NTPDynamicNewTabTakeoverAdEventHandler>
+        sponsored_content_ad_event_handler)
     : ui::MojoWebUIController(web_ui),
       ntp_background_images_service_(ntp_background_images_service),
-      rich_media_ad_event_handler_(std::move(rich_media_ad_event_handler)) {
+      sponsored_content_ad_event_handler_(
+          std::move(sponsored_content_ad_event_handler)) {
   content::WebUIDataSource* source = CreateAndAddWebUIDataSource(
       web_ui, kNewTabTakeoverHost, kNewTabTakeoverGenerated,
       IDR_NEW_TAB_TAKEOVER_HTML);
@@ -68,9 +70,9 @@ NewTabTakeoverUI::NewTabTakeoverUI(
 
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::FrameSrc,
-      absl::StrFormat("frame-src %s;", kNTPNewTabTakeoverRichMediaUrl));
-  source->AddString("ntpNewTabTakeoverRichMediaUrl",
-                    kNTPNewTabTakeoverRichMediaUrl);
+      absl::StrFormat("frame-src %s;", kNTPDynamicNewTabTakeoverUrl));
+  source->AddString("ntpNewTabTakeoverDynamicContentUrl",
+                    kNTPDynamicNewTabTakeoverUrl);
 }
 
 NewTabTakeoverUI::~NewTabTakeoverUI() {
@@ -120,11 +122,11 @@ void NewTabTakeoverUI::SetPage(
   }
 }
 
-void NewTabTakeoverUI::SetSponsoredRichMediaAdEventHandler(
+void NewTabTakeoverUI::SetSponsoredContentAdEventHandler(
     mojo::PendingReceiver<
-        ntp_background_images::mojom::SponsoredRichMediaAdEventHandler>
+        ntp_background_images::mojom::SponsoredContentAdEventHandler>
         event_handler) {
-  rich_media_ad_event_handler_->Bind(std::move(event_handler));
+  sponsored_content_ad_event_handler_->Bind(std::move(event_handler));
 }
 
 void NewTabTakeoverUI::GetCurrentWallpaper(
@@ -137,15 +139,15 @@ void NewTabTakeoverUI::GetCurrentWallpaper(
         /*target_url=*/std::nullopt);
   };
 
-  const ntp_background_images::NTPSponsoredImagesData* sponsored_images_data =
-      ntp_background_images_service_->GetSponsoredImagesData(
-          /*supports_rich_media=*/true);
-  if (!sponsored_images_data) {
+  const ntp_background_images::NTPSponsoredContentData* sponsored_content_data =
+      ntp_background_images_service_->GetNewTabTakeover(
+          /*supports_dynamic_new_tab_takeover=*/true);
+  if (!sponsored_content_data) {
     return failed();
   }
 
   const ntp_background_images::Creative* creative =
-      sponsored_images_data->GetCreativeByInstanceId(creative_instance_id);
+      sponsored_content_data->GetCreativeByInstanceId(creative_instance_id);
   if (!creative) {
     return failed();
   }

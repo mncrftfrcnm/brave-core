@@ -12,8 +12,10 @@ passed through verbatim:
 
     python3 launcher.py brockit lift --to=1.2.3.4
 
-This runs under plain `python3` (not `vpython3`), so it must stay stdlib-only,
-and it should be kept self-contained from other python code.
+The shims reach this script through `runner.py`, which runs it under the
+checkout's vendored `vpython3`, or plain `python3` outside a checkout. It must
+therefore stay stdlib-only, and it should be kept self-contained from other
+python code.
 """
 
 from __future__ import annotations
@@ -169,28 +171,6 @@ def _resolve_vpython3(checkout: Path) -> Path:
     return checkout / 'vendor' / 'depot_tools' / name
 
 
-# TODO(https://brave.dev/b/57477): this `npm_wrapper` special-casing exists
-# only while `build/npm_wrapper` sits ahead of our shims on `$PATH` in CI. That
-# wrapper translates `npm` to `pnpm` and otherwise defers to the next `npm` on
-# `$PATH` (our shim). If our `npm` fallback resolved a binary back out of the
-# wrapper dir, the wrapper would call our shim, which would fall back to the
-# wrapper again, ping-ponging forever. The wrapper dir is recognised by a
-# sentinel file it is guaranteed to contain. Delete this constant and
-# `_is_wrapper_dir`, and the guarded block in `_resolve_system_binary`, once
-# `build/npm_wrapper` is gone.
-_WRAPPER_SENTINELS: tuple[str, ...] = ('npm_wrapper.py', )
-
-
-def _is_wrapper_dir(directory: Path) -> bool:
-    """Whether `directory` is the `npm_wrapper` routing dir.
-
-    TODO(https://brave.dev/b/57477): remove with the rest of the `npm_wrapper`
-    special-casing once `build/npm_wrapper` is gone.
-    """
-    return any(
-        (directory / sentinel).is_file() for sentinel in _WRAPPER_SENTINELS)
-
-
 def _resolve_system_binary(tool: str,
                            exclude_dir: Path | None = None) -> str | None:
     """Locate `tool` on `$PATH`, minus the shim dir.
@@ -205,12 +185,6 @@ def _resolve_system_binary(tool: str,
             continue
         resolved = Path(entry).resolve()
         if resolved == here:
-            continue
-        # TODO(https://brave.dev/b/57477): the `npm` fallback alone must skip a
-        # `build/npm_wrapper` dir present on `$PATH` (the wrapper shadows `npm`
-        # only); resolving into it would ping-pong between the wrapper and our
-        # shim. Remove once `build/npm_wrapper` is gone.
-        if tool == 'npm' and _is_wrapper_dir(resolved):
             continue
         entries.append(entry)
     return shutil.which(tool, path=os.pathsep.join(entries))
@@ -254,17 +228,22 @@ class SelfUpdater:
     def deploy(self) -> None:
         """Deploy the single-object `EXTRA_DEPS` `entry` into the checkout.
 
-        Runs `tarball_installer.py` with the same runtime the launcher is
-        using, assuming a bare, stdlib-only environment.
+        Runs `tarball_installer.py` under `vpython3`, so it gets the Python
+        pinned by `tools/cr/.vpython3`.
+
+        A failed install propagates: the pinned target is missing or stale,
+        so running some other version of the tool (or none at all) would
+        hide the failure from whatever drives us. `check_call` names the
+        exact command in the failure, and the installer's own traceback has
+        already reached stderr.
         """
         installer = self.checkout / 'tools' / 'cr' / 'tarball_installer.py'
         if not installer.is_file():
             return
-        try:
-            subprocess.call([sys.executable, str(installer), self.entry])
-        except OSError as error:
-            sys.stderr.write(
-                f'launcher.py: could not run tarball_installer.py: {error}\n')
+        subprocess.check_call([
+            str(_resolve_vpython3(self.checkout)),
+            str(installer), self.entry
+        ])
 
     def _load_extra_deps(self):
         """Import the checkout's stdlib-only `extra_deps` module, or None.
@@ -300,6 +279,10 @@ def resolve_invocation(tool: str, checkout: Path | None,
     are usually run from checkout, but certain tools are allowed to fallback to
     system binaries if nothing is found in checkout, when `allow_fallback` is
     True.
+
+    A failed deployment of a stale self-updatable target propagates: that is
+    never fallback-worthy, since the checkout asked for a pinned version and
+    could not get it.
     """
     shim = find_shim_target(tool)
     invocation = None

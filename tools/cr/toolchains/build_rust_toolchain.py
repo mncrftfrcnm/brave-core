@@ -4,14 +4,12 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at https://mozilla.org/MPL/2.0/.
 #
-# [VPYTHON:BEGIN]
-# python_version: "3.11"
-#
-# wheel: <
-#   name: "infra/python/wheels/pyyaml-py3"
-#   version: "version:6.0.1"
-# >
-# [VPYTHON:END]
+# /// script
+# requires-python = '>=3.11,<3.12'
+# dependencies = [
+#   'pyyaml==6.0.1'
+# ]
+# ///
 """Build and package a minimal Rust toolchain subset for Chromium.
 
 By default the builder produces a minimal overlay `.tar.xz` containing only two
@@ -243,11 +241,6 @@ PLATFORM_PREFIX_TO_CHROMIUM_HOST_OS = {
 # returns the entry keyed by this path.
 RUST_TOOLCHAIN_DEP_PATH = 'src/third_party/rust-toolchain'
 RUST_TOOLCHAIN_DEP_CONDITION = 'not rust_force_head_revision'
-
-if sys.platform == 'win32':
-    # Path to Git's sh.exe on Windows, which is used by
-    # `tools/rust/build_rust.py` to build the toolchain on Windows.`
-    GIT_SH_PRESUMED_BIN_PATH = Path(r'C:\Program Files\Git\bin\sh.exe')
 
 
 def toolchain_index_name(platform_prefix: str, upstream_stem: str,
@@ -1104,12 +1097,13 @@ class ToolchainBuilder:
         if sys.platform == 'win32' and shutil.which('sh') is None:
             # Setting up git bin in PATH so `build_rust.py` can eventually
             # use sh.exe, which it requires to run.
-            if GIT_SH_PRESUMED_BIN_PATH.is_file():
+            git_sh_path = Path(r'C:\Program Files\Git\bin\sh.exe')
+            if git_sh_path.is_file():
                 logging.info(
                     'Adding Git bin to PATH for depot_tools on Windows: %s',
-                    GIT_SH_PRESUMED_BIN_PATH.parent)
+                    git_sh_path.parent)
                 os.environ['PATH'] = os.pathsep.join(
-                    [str(GIT_SH_PRESUMED_BIN_PATH.parent), os.environ['PATH']])
+                    [str(git_sh_path.parent), os.environ['PATH']])
             else:
                 raise RuntimeError(
                     'Git sh.exe not found on PATH. This is required to run '

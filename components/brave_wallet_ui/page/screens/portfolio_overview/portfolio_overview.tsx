@@ -94,8 +94,8 @@ import {
 } from '$wallet/page/components/wallet_page_wrapper/wallet_page_wrapper'
 import {
   PortfolioOverviewHeader, //
-} from '../../../components/desktop/card-headers/portfolio-overview-header'
-import { Banners } from '../../../components/desktop/banners/banners'
+} from '$wallet/page/components/card_headers/portfolio_overview_header'
+import { Banners } from '$wallet/page/components/banners/banners'
 import {
   LastPricesUpdatedTooltip, //
 } from '../../../components/shared/last_prices_updated_tooltip/last_prices_updated_tooltip'

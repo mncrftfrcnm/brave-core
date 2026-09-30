@@ -24,7 +24,7 @@ ViewCounterModel::ViewCounterModel(PrefService* prefs)
   // When browser is restarted we reset to "initial" count. This will also get
   // set again in the Reset() function, called e.g. when component is updated.
   count_to_new_tab_takeover_wallpaper_ =
-      features::kInitialCountToBrandedWallpaper.Get() - 1;
+      features::kInitialCountToNewTabTakeoverWallpaper.Get() - 1;
 
   // We also reset when a specific amount of time is elapsed while sponsored
   // content is enabled.
@@ -35,34 +35,10 @@ ViewCounterModel::~ViewCounterModel() = default;
 
 void ViewCounterModel::SetCampaignsTotalNewTabTakeoverCreativeCount(
     const std::vector<size_t>& campaigns_total_creative_count) {
-  campaigns_total_new_tab_takeover_creative_count_ =
-      campaigns_total_creative_count;
-  total_campaign_count_ =
-      campaigns_total_new_tab_takeover_creative_count_.size();
-
-  // Pick the first creative index for each campaign randomly for sponsored
-  // content.
-  for (size_t i = 0; i < total_campaign_count_; ++i) {
-    const int index = base::RandIntInclusive(
-        0,
-        static_cast<int>(campaigns_total_new_tab_takeover_creative_count_[i]) -
-            1);
-    campaigns_current_new_tab_takeover_creative_index_.push_back(index);
-  }
-
-  // Pick the first campaign index randomly.
-  current_campaign_index_ =
-      base::RandIntInclusive(0, static_cast<int>(total_campaign_count_) - 1);
+  total_campaign_count_ = campaigns_total_creative_count.size();
 }
 
-std::tuple<size_t, size_t>
-ViewCounterModel::GetCurrentNewTabTakeoverCampaignAndCreativeIndex() const {
-  return {current_campaign_index_,
-          campaigns_current_new_tab_takeover_creative_index_
-              [current_campaign_index_]};
-}
-
-bool ViewCounterModel::ShouldShowSponsoredImages() const {
+bool ViewCounterModel::ShouldShowNewTabTakeover() const {
   if (!show_new_tab_takeover_wallpaper_) {
     return false;
   }
@@ -92,27 +68,11 @@ void ViewCounterModel::RegisterPageViewForNewTabTakeoverCreatives() {
   // When count is `0` then UI is free to show
   // the New Tab Takeover wallpaper, until the next time `RegisterPageView`
   // is called.
-  // We select the appropriate creative index for the scheduled
-  // view of the New Tab Takeover wallpaper.
   count_to_new_tab_takeover_wallpaper_--;
   if (count_to_new_tab_takeover_wallpaper_ < 0) {
-    // Reset count and randomize creative index for next time.
+    // Reset count for next time.
     count_to_new_tab_takeover_wallpaper_ =
-        features::kCountToBrandedWallpaper.Get() - 1;
-
-    // Randomize the sponsored content campaign's creative index for next
-    // time.
-    campaigns_current_new_tab_takeover_creative_index_
-        [current_campaign_index_] = base::RandIntInclusive(
-            0,
-            static_cast<int>(
-                campaigns_total_new_tab_takeover_creative_count_
-                    [current_campaign_index_]) -
-                1);
-
-    // Randomize campaign index for next time.
-    current_campaign_index_ =
-        base::RandIntInclusive(0, static_cast<int>(total_campaign_count_) - 1);
+        features::kCountToNewTabTakeoverWallpaper.Get() - 1;
   }
 }
 
@@ -147,17 +107,14 @@ void ViewCounterModel::MaybeResetNewTabTakeoverCount() {
   if (show_new_tab_takeover_wallpaper_) {
     count_to_new_tab_takeover_wallpaper_ =
         std::min(count_to_new_tab_takeover_wallpaper_,
-                 features::kInitialCountToBrandedWallpaper.Get() - 1);
+                 features::kInitialCountToNewTabTakeoverWallpaper.Get() - 1);
   }
 }
 
 void ViewCounterModel::Reset() {
   current_wallpaper_image_index_ = 0;
   total_image_count_ = 0;
-  current_campaign_index_ = 0;
   total_campaign_count_ = 0;
-  campaigns_total_new_tab_takeover_creative_count_.clear();
-  campaigns_current_new_tab_takeover_creative_index_.clear();
   MaybeResetNewTabTakeoverCount();
   ScheduleNextNewTabTakeoverCountReset();
 }

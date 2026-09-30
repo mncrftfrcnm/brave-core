@@ -222,10 +222,8 @@ void BraveToolbarView::Init() {
 
   // This will allow us to move this window by dragging toolbar.
   // See brave_non_client_hit_test_helper.h
-  CHECK_DEREF(browser())
-      .GetFeatures()
-      .brave_non_client_hit_test_helper()
-      ->RegisterCaptionArea(this);
+  CHECK_DEREF(BraveNonClientHitTestHelper::From(browser()))
+      .RegisterCaptionArea(this);
 
   // For non-normal mode, we don't have to do any more work.
   if (display_mode_ != DisplayMode::kNormal) {
@@ -852,7 +850,7 @@ void BraveToolbarView::CreateWorkspaceButtonIfNeeded() {
 }
 
 void BraveToolbarView::OnWorkspacesButtonPressed() {
-  auto* controller = browser_->GetFeatures().workspaces_bubble_controller();
+  auto* controller = WorkspacesBubbleController::From(browser_);
   CHECK(controller);
   controller->ShowBubble(workspaces_button_, browser_->GetProfile());
 }

@@ -17,7 +17,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
@@ -64,7 +63,7 @@ void ClosePanel(content::WebContents* web_contents) {
     return;
   }
 
-  if (SidePanelUI* ui = browser->GetFeatures().side_panel_ui()) {
+  if (SidePanelUI* ui = SidePanelUI::From(browser)) {
     ui->Close();
   }
 }
@@ -79,7 +78,7 @@ void ClosePanelIfChatActive(content::WebContents* web_contents) {
     return;
   }
 
-  SidePanelUI* ui = browser->GetFeatures().side_panel_ui();
+  SidePanelUI* ui = SidePanelUI::From(browser);
   if (ui && ui->GetCurrentEntryId() == SidePanelEntryId::kChatUI) {
     ui->Close();
   }
@@ -116,7 +115,7 @@ bool MaybeMoveFullPageChatToSidePanel(
   }
 
   AIChatSidePanelTabTransferBridge* transfer_controller =
-      browser->GetFeatures().ai_chat_side_panel_tab_transfer_bridge();
+      AIChatSidePanelTabTransferBridge::From(browser);
   if (!transfer_controller) {
     // Flag off, or a window type that has no controller.
     return false;
@@ -182,7 +181,7 @@ bool MaybeMoveSidePanelChatToTab(content::WebContents* ai_chat_web_contents) {
   }
 
   AIChatSidePanelTabTransferBridge* transfer_bridge =
-      browser->GetFeatures().ai_chat_side_panel_tab_transfer_bridge();
+      AIChatSidePanelTabTransferBridge::From(browser);
   if (!transfer_bridge) {
     // The feature is enabled (checked above), so this is a window type that has
     // no bridge (e.g. not a normal browser window).
@@ -233,7 +232,7 @@ void OpenConversationInSidePanel(Profile* profile,
   }
 
   // Window type without a side panel UI (not a normal browser window).
-  SidePanelUI* side_panel_ui = browser->GetFeatures().side_panel_ui();
+  SidePanelUI* side_panel_ui = SidePanelUI::From(browser);
   if (!side_panel_ui) {
     return;
   }

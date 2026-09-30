@@ -50,6 +50,7 @@ brave_chrome_java_deps = [
   "//brave/browser/ui/android/bottombar:prefs_java",
   "//brave/browser/ui/android/favicon:java",
   "//brave/browser/ui/android/logo:java",
+  "//brave/browser/ui/android/ntp_widgets:java",
   "//brave/browser/ui/android/omnibox:java",
   "//brave/browser/ui/android/theme:dynamic_colors_java",
   "//brave/browser/ui/android/theme:java",
@@ -111,6 +112,7 @@ brave_chrome_all_java_deps = [
   "//brave/browser/messages/android:java",
   "//brave/browser/partnercustomizations:delegate_public_impl_java",
   "//brave/browser/password_entry_edit/android/internal:java",
+  "//brave/browser/ui/android/brave_account:java",
 ]
 
 brave_chrome_java_srcjar_deps = [
@@ -142,7 +144,6 @@ brave_jni_headers_sources = [
   "//brave/android/java/org/chromium/chrome/browser/BraveSyncWorker.java",
   "//brave/android/java/org/chromium/chrome/browser/app/BraveActivity.java",
   "//brave/android/java/org/chromium/chrome/browser/bookmarks/BraveBookmarkBridge.java",
-  "//brave/android/java/org/chromium/chrome/browser/brave_account/BraveAccountServiceFactory.java",
   "//brave/android/java/org/chromium/chrome/browser/brave_leo/BraveLeoMojomHelper.java",
   "//brave/android/java/org/chromium/chrome/browser/brave_leo/BraveLeoUtils.java",
   "//brave/android/java/org/chromium/chrome/browser/brave_news/BraveNewsControllerFactory.java",

@@ -58,8 +58,9 @@ export abstract class BraveAccountRowBaseElement<
     return {
       beforeLink: [
         this.verificationIntentDescription,
-        loadTimeData.getString(BraveAccountSettingsStrings
-          .SETTINGS_BRAVE_ACCOUNT_VERIFICATION_ROW_DESCRIPTION_2),
+        loadTimeData.getString(
+          BraveAccountSettingsStrings.SETTINGS_BRAVE_ACCOUNT_VERIFICATION_ROW_DESCRIPTION_2,
+        ),
         beforeLink,
       ].join(' '),
       linkLabel,
@@ -99,12 +100,13 @@ export abstract class BraveAccountRowBaseElement<
     this.openDialog(DialogMode.kAccountDeletion)
   }
 
-  // How the dialog is opened is the host's decision, not the row's, so the
-  // rows only announce the intent and let their mount act on it.
+  // Where the flows are opened is the host's decision: brave://settings opens a
+  // dialog over the page, mobile presents them over the page serving the rows.
+  // Either way the browser does it, so both go through the same call.
   private openDialog(dialogMode: DialogMode) {
-    this.fire('open-brave-account-dialog', {
-      initiatingServiceName: this.initiatingServiceName,
+    this.browserProxy.dialogOpener.openDialog(
+      this.initiatingServiceName,
       dialogMode,
-    })
+    )
   }
 }

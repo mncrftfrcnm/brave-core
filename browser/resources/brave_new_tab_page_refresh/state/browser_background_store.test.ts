@@ -5,15 +5,14 @@
 
 import { createBackgroundStore } from './browser_background_store'
 import { NewTabPageProxy } from './new_tab_page_proxy'
-import { NewTabPageInterface } from
-  'gen/brave/browser/ui/webui/brave_new_tab_page_refresh/brave_new_tab_page.mojom.m.js'
+import { NewTabPageInterface } from 'gen/brave/browser/ui/webui/brave_new_tab_page_refresh/brave_new_tab_page.mojom.m.js'
 
 jest.mock('./new_tab_page_proxy')
 
 jest.mock(
   'gen/brave/components/ntp_background_images/browser/mojom/'
     + 'ntp_background_images.mojom.m.js',
-  () => ({ SponsoredRichMediaAdEventHandler: { getRemote: () => ({}) } }),
+  () => ({ SponsoredContentAdEventHandler: { getRemote: () => ({}) } }),
 )
 
 function createMockNewTabPageProxy() {
@@ -21,9 +20,7 @@ function createMockNewTabPageProxy() {
   return {
     handler: {
       getBackgroundsEnabled: jest.fn().mockResolvedValue({ enabled: true }),
-      getSponsoredImagesEnabled: jest
-        .fn()
-        .mockResolvedValue({ enabled: true }),
+      getSponsoredImagesEnabled: jest.fn().mockResolvedValue({ enabled: true }),
       getBraveBackgrounds: jest.fn().mockResolvedValue({ backgrounds: [] }),
       getSelectedBackground: jest.fn().mockResolvedValue({ background: null }),
       getCustomBackgrounds: jest.fn().mockResolvedValue({ backgrounds: [] }),

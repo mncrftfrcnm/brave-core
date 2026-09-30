@@ -68,14 +68,6 @@ class BrowserWindowFeatures : public BrowserWindowFeatures_ChromiumImpl {
   }
 #endif
 
-#if BUILDFLAG(ENABLE_AI_CHAT)
-  // Null unless the `kAIChatMoveFullPageToSidePanel` feature is enabled and
-  // this is a normal window with AI Chat available.
-  AIChatSidePanelTabTransferBridge* ai_chat_side_panel_tab_transfer_bridge() {
-    return ai_chat_side_panel_tab_transfer_bridge_.get();
-  }
-#endif
-
 #if BUILDFLAG(ENABLE_EMAIL_ALIASES)
   email_aliases::EmailAliasesController* email_aliases_controller() {
     return email_aliases_controller_.get();
@@ -90,34 +82,12 @@ class BrowserWindowFeatures : public BrowserWindowFeatures_ChromiumImpl {
     return focus_mode_controller_.get();
   }
 
-  BraveShieldsUIContentsCache* brave_shields_ui_contents_cache() {
-    return brave_shields_ui_contents_cache_.get();
-  }
-
-  BraveNonClientHitTestHelper* brave_non_client_hit_test_helper() {
-    return brave_non_client_hit_test_helper_.get();
-  }
-
-  // Can be null when the browser isn't a normal browser or when the tree tab
-  // feature is disabled.
-  TreeTabSessionManager* GetTreeTabSessionManager() {
-    return tree_tab_session_manager_.get();
-  }
-
-  screenshot::ScreenshotController* screenshot_controller() {
-    return screenshot_controller_.get();
-  }
-
   VerticalTabController* vertical_tab_controller() {
     return vertical_tab_controller_.get();
   }
 
   const VerticalTabController* vertical_tab_controller() const {
     return vertical_tab_controller_.get();
-  }
-
-  WorkspacesBubbleController* workspaces_bubble_controller() {
-    return workspaces_bubble_controller_.get();
   }
 
   void SetVerticalTabControllerForTesting(

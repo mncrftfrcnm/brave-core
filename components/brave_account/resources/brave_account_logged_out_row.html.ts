@@ -11,7 +11,7 @@ import { BraveAccountSettingsStrings } from './brave_components_webui_strings.js
 import { LoggedOutVerificationIntent } from './brave_account.mojom-webui.js'
 
 export function getHtml(this: BraveAccountLoggedOutRowElement) {
-  return this.state.verification
+  return html`${this.state.verification
     ? html` <div class="first-row">
           <leo-icon name="social-brave-release-favicon-fullheight-color">
           </leo-icon>
@@ -73,11 +73,18 @@ export function getHtml(this: BraveAccountLoggedOutRowElement) {
             )}
           </div>
           <div class="description">
-            ${this.getLoggedOutDescription().beforeLink}<leo-link
-              href=${loadTimeData.getString('braveAccountLearnMoreURL')}
-              target="_blank"
-              >${this.getLoggedOutDescription().linkLabel}</leo-link
-            >${this.getLoggedOutDescription().afterLink}
+            <if expr="not is_android and not is_ios">
+              ${this.getLoggedOutDescription().beforeLink}<leo-link
+                href=${loadTimeData.getString('braveAccountLearnMoreURL')}
+                target="_blank"
+                >${this.getLoggedOutDescription().linkLabel}</leo-link
+              >${this.getLoggedOutDescription().afterLink}
+            </if>
+            <if expr="is_android or is_ios">
+              ${loadTimeData.getString(
+                BraveAccountSettingsStrings.BRAVE_ACCOUNT_DESCRIPTION,
+              )}
+            </if>
           </div>
         </div>
         <leo-button
@@ -89,5 +96,5 @@ export function getHtml(this: BraveAccountLoggedOutRowElement) {
             BraveAccountSettingsStrings.SETTINGS_BRAVE_ACCOUNT_GET_STARTED_BUTTON_LABEL,
           )}
         </leo-button>
-      </div>`
+      </div>`}`
 }

@@ -33,7 +33,6 @@
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_bubble_type.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
@@ -307,7 +306,7 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest, TopSeparatorWithPanelTest) {
                   ->GetVisible());
 
   // Check separator is still visible after panel opens.
-  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* panel_ui = SidePanelUI::From(browser());
   panel_ui->Toggle();
   RunScheduledLayouts();
   ASSERT_TRUE(
@@ -503,7 +502,7 @@ IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
   }
 #endif
 
-  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* panel_ui = SidePanelUI::From(browser());
   panel_ui->Toggle();
   RunScheduledLayouts();
 
@@ -581,7 +580,7 @@ IN_PROC_BROWSER_TEST_P(
                             window_corner_radius);
   }
 
-  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* panel_ui = SidePanelUI::From(browser());
 
   // --- Right-aligned panel (default: kSidePanelHorizontalAlignment = true) ---
   panel_ui->Toggle();
@@ -634,7 +633,7 @@ IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
   }
 #endif
 
-  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* panel_ui = SidePanelUI::From(browser());
   panel_ui->Toggle();
   RunScheduledLayouts();
 
@@ -672,7 +671,7 @@ IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
   }
 #endif
 
-  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* panel_ui = SidePanelUI::From(browser());
   panel_ui->Toggle();
   RunScheduledLayouts();
 
@@ -804,7 +803,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest,
                        BoundingBoxStableWithSidePanelTest) {
-  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* panel_ui = SidePanelUI::From(browser());
   auto* brave_view = brave_browser_view();
 
   // Get bounds with panel closed.
@@ -875,9 +874,7 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest,
   browser()->GetProfile()->GetPrefs()->SetBoolean(kShowFullscreenReminder,
                                                   false);
 
-  browser()
-      ->GetFeatures()
-      .exclusive_access_manager()
+  ExclusiveAccessManager::From(browser())
       ->context()
       ->UpdateExclusiveAccessBubble(
           {
@@ -899,18 +896,14 @@ IN_PROC_BROWSER_TEST_F(
   browser()->GetProfile()->GetPrefs()->SetBoolean(kShowFullscreenReminder,
                                                   false);
 
-  browser()
-      ->GetFeatures()
-      .exclusive_access_manager()
-      ->context()
-      ->UpdateExclusiveAccessBubble(
-          {
-              .origin = url::Origin::Create(GURL("http://www.example.com")),
-              .type = ExclusiveAccessBubbleType::
-                  EXCLUSIVE_ACCESS_BUBBLE_TYPE_BROWSER_FULLSCREEN_EXIT_INSTRUCTION,
-              .force_update = true,
-          },
-          base::NullCallback());
+  ExclusiveAccessManager::From(browser())->context()->UpdateExclusiveAccessBubble(
+      {
+          .origin = url::Origin::Create(GURL("http://www.example.com")),
+          .type = ExclusiveAccessBubbleType::
+              EXCLUSIVE_ACCESS_BUBBLE_TYPE_BROWSER_FULLSCREEN_EXIT_INSTRUCTION,
+          .force_update = true,
+      },
+      base::NullCallback());
 
   EXPECT_FALSE(browser_view()
                    ->GetExclusiveAccessContext()
@@ -922,9 +915,7 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest,
   browser()->GetProfile()->GetPrefs()->SetBoolean(kShowFullscreenReminder,
                                                   true);
 
-  browser()
-      ->GetFeatures()
-      .exclusive_access_manager()
+  ExclusiveAccessManager::From(browser())
       ->context()
       ->UpdateExclusiveAccessBubble(
           {
@@ -945,18 +936,14 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest,
   browser()->GetProfile()->GetPrefs()->SetBoolean(kShowFullscreenReminder,
                                                   true);
 
-  browser()
-      ->GetFeatures()
-      .exclusive_access_manager()
-      ->context()
-      ->UpdateExclusiveAccessBubble(
-          {
-              .origin = url::Origin::Create(GURL("http://www.example.com")),
-              .type = ExclusiveAccessBubbleType::
-                  EXCLUSIVE_ACCESS_BUBBLE_TYPE_BROWSER_FULLSCREEN_EXIT_INSTRUCTION,
-              .force_update = true,
-          },
-          base::NullCallback());
+  ExclusiveAccessManager::From(browser())->context()->UpdateExclusiveAccessBubble(
+      {
+          .origin = url::Origin::Create(GURL("http://www.example.com")),
+          .type = ExclusiveAccessBubbleType::
+              EXCLUSIVE_ACCESS_BUBBLE_TYPE_BROWSER_FULLSCREEN_EXIT_INSTRUCTION,
+          .force_update = true,
+      },
+      base::NullCallback());
 
   EXPECT_TRUE(browser_view()
                   ->GetExclusiveAccessContext()
@@ -971,18 +958,14 @@ IN_PROC_BROWSER_TEST_F(
   browser()->GetProfile()->GetPrefs()->SetBoolean(kShowFullscreenReminder,
                                                   true);
 
-  browser()
-      ->GetFeatures()
-      .exclusive_access_manager()
-      ->context()
-      ->UpdateExclusiveAccessBubble(
-          {
-              .origin = url::Origin::Create(GURL("http://www.example.com")),
-              .type = ExclusiveAccessBubbleType::
-                  EXCLUSIVE_ACCESS_BUBBLE_TYPE_EXTENSION_FULLSCREEN_EXIT_INSTRUCTION,
-              .force_update = true,
-          },
-          base::NullCallback());
+  ExclusiveAccessManager::From(browser())->context()->UpdateExclusiveAccessBubble(
+      {
+          .origin = url::Origin::Create(GURL("http://www.example.com")),
+          .type = ExclusiveAccessBubbleType::
+              EXCLUSIVE_ACCESS_BUBBLE_TYPE_EXTENSION_FULLSCREEN_EXIT_INSTRUCTION,
+          .force_update = true,
+      },
+      base::NullCallback());
 
   EXPECT_TRUE(browser_view()
                   ->GetExclusiveAccessContext()
@@ -1076,10 +1059,8 @@ IN_PROC_BROWSER_TEST_F(
 
   // Fake tab (content) fullscreen without triggering any OS fullscreen
   // transition — IsWindowFullscreenForTabOrPending() becomes true immediately.
-  auto* fullscreen_controller = browser()
-                                    ->GetFeatures()
-                                    .exclusive_access_manager()
-                                    ->fullscreen_controller();
+  auto* fullscreen_controller =
+      ExclusiveAccessManager::From(browser())->fullscreen_controller();
   fullscreen_controller->set_is_tab_fullscreen_for_testing(true);
   ASSERT_TRUE(fullscreen_utils::IsInContentFullscreen(browser()));
 

@@ -51,7 +51,6 @@
 #include "brave/components/containers/content/browser/storage_partition_utils.h"
 #include "brave/components/containers/core/browser/containers_service.h"
 #include "brave/components/containers/core/common/features.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "components/tabs/public/tab_interface.h"
@@ -224,6 +223,12 @@ void BraveTab::RemovedFromWidget() {
   Tab::RemovedFromWidget();
 }
 
+bool BraveTab::IsHovering() const {
+  // Upstream gives true when the tab is in split tab and another tab is
+  // hovered. But, we only want to show hover effect for currently hovered tab.
+  return mouse_hovered_;
+}
+
 #if BUILDFLAG(ENABLE_CONTAINERS)
 void BraveTab::MaybeStartObservingFullscreenChanges() {
   if (!small_accent_icon_view_ || fullscreen_subscription_) {
@@ -235,8 +240,7 @@ void BraveTab::MaybeStartObservingFullscreenChanges() {
     return;
   }
 
-  auto* exclusive_access_manager =
-      browser->GetFeatures().exclusive_access_manager();
+  auto* exclusive_access_manager = ExclusiveAccessManager::From(browser);
   if (!exclusive_access_manager) {
     return;
   }

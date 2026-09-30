@@ -42,9 +42,9 @@ class ViewCounterModelTest : public testing::Test {
 
     base::FieldTrialParams parameters;
     std::vector<base::test::FeatureRefAndParams> enabled_features;
-    parameters[features::kInitialCountToBrandedWallpaper.name] = "2";
-    parameters[features::kCountToBrandedWallpaper.name] = "4";
-    enabled_features.emplace_back(features::kBraveNTPBrandedWallpaper,
+    parameters[features::kInitialCountToNewTabTakeoverWallpaper.name] = "2";
+    parameters[features::kCountToNewTabTakeoverWallpaper.name] = "4";
+    enabled_features.emplace_back(features::kBraveNTPNewTabTakeoverWallpaper,
                                   parameters);
     feature_list_.InitWithFeaturesAndParameters(enabled_features, {});
   }
@@ -74,142 +74,123 @@ class ViewCounterModelTest : public testing::Test {
   int last_rand_max_ = -1;
 };
 
-TEST_F(ViewCounterModelTest, NTPSponsoredImagesTest) {
+TEST_F(ViewCounterModelTest, NTPSponsoredContentTest) {
   ViewCounterModel model(prefs());
 
   model.SetCampaignsTotalNewTabTakeoverCreativeCount(
       kTestCampaignsTotalImageCount);
 
-  // Check randomly picked campaign index.
-  EXPECT_TRUE(model.current_campaign_index_ <
-              kTestCampaignsTotalImageCount.size());
-
-  // Set current campaign index explicitely to test easily.
-  model.current_campaign_index_ = 1;
-
   // Loading initial count times.
-  for (int i = 0; i < features::kInitialCountToBrandedWallpaper.Get() - 1;
-       ++i) {
-    EXPECT_FALSE(model.ShouldShowSponsoredImages());
+  for (int i = 0;
+       i < features::kInitialCountToNewTabTakeoverWallpaper.Get() - 1; ++i) {
+    EXPECT_FALSE(model.ShouldShowNewTabTakeover());
     model.RegisterPageView();
   }
 
   for (size_t i = 0; i < 30; i++) {
     // Random image should be displayed now after loading initial count.
-    EXPECT_TRUE(model.ShouldShowSponsoredImages());
-
-    const auto [campaign_index, creative_index] =
-        model.GetCurrentNewTabTakeoverCampaignAndCreativeIndex();
-    EXPECT_TRUE(campaign_index < kTestCampaignsTotalImageCount.size());
-    EXPECT_TRUE(creative_index <
-                kTestCampaignsTotalImageCount.at(campaign_index));
+    EXPECT_TRUE(model.ShouldShowNewTabTakeover());
     model.RegisterPageView();
 
     // Loading regular-count times.
-    for (int j = 0; j < features::kCountToBrandedWallpaper.Get() - 1; ++j) {
-      EXPECT_FALSE(model.ShouldShowSponsoredImages());
+    for (int j = 0; j < features::kCountToNewTabTakeoverWallpaper.Get() - 1;
+         ++j) {
+      EXPECT_FALSE(model.ShouldShowNewTabTakeover());
       model.RegisterPageView();
     }
   }
 }
 
-TEST_F(ViewCounterModelTest, NTPSponsoredImagesCountToNewTabTakeoverTest) {
+TEST_F(ViewCounterModelTest, NTPSponsoredContentCountToNewTabTakeoverTest) {
   ViewCounterModel model(prefs());
-  model.count_to_new_tab_takeover_wallpaper_ = 1;
 
   model.SetCampaignsTotalNewTabTakeoverCreativeCount(
       kTestCampaignsTotalImageCount);
 
-  // Check randomly picked campaign index.
-  EXPECT_TRUE(model.current_campaign_index_ <
-              kTestCampaignsTotalImageCount.size());
-
-  // Set current campaign index explicitely to test easily.
-  model.current_campaign_index_ = 1;
-
   // Count is 1 so we should not show the New Tab Takeover wallpaper.
-  EXPECT_FALSE(model.ShouldShowSponsoredImages());
+  EXPECT_FALSE(model.ShouldShowNewTabTakeover());
   model.RegisterPageView();
 
   // Count is 0 so we should show the New Tab Takeover wallpaper.
-  EXPECT_TRUE(model.ShouldShowSponsoredImages());
+  EXPECT_TRUE(model.ShouldShowNewTabTakeover());
   model.RegisterPageView();
 
-  // Loading regular-count times from kCountToBrandedWallpaper to 0 and do not
-  // show the New Tab Takeover wallpaper.
-  for (int i = 0; i < features::kCountToBrandedWallpaper.Get() - 1; ++i) {
-    EXPECT_FALSE(model.ShouldShowSponsoredImages());
+  // Loading regular-count times from kCountToNewTabTakeoverWallpaper to 0 and
+  // do not show the New Tab Takeover wallpaper.
+  for (int i = 0; i < features::kCountToNewTabTakeoverWallpaper.Get() - 1;
+       ++i) {
+    EXPECT_FALSE(model.ShouldShowNewTabTakeover());
     model.RegisterPageView();
   }
 
   // Count is 0 so we should show the New Tab Takeover wallpaper.
-  EXPECT_TRUE(model.ShouldShowSponsoredImages());
+  EXPECT_TRUE(model.ShouldShowNewTabTakeover());
   model.RegisterPageView();
 }
 
-TEST_F(ViewCounterModelTest, NTPSponsoredImagesCountResetTest) {
+TEST_F(ViewCounterModelTest, NTPSponsoredContentCountResetTest) {
   ViewCounterModel model(prefs());
   model.SetCampaignsTotalNewTabTakeoverCreativeCount(
       kTestCampaignsTotalImageCount);
 
   // Verify param value for initial count was used
-  EXPECT_EQ(1, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_EQ(1, model.count_to_new_tab_takeover_wallpaper_for_testing());
   model.RegisterPageView();
-  EXPECT_TRUE(model.ShouldShowSponsoredImages());
+  EXPECT_TRUE(model.ShouldShowNewTabTakeover());
   model.RegisterPageView();
-  EXPECT_FALSE(model.ShouldShowSponsoredImages());
-  EXPECT_EQ(3, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_FALSE(model.ShouldShowNewTabTakeover());
+  EXPECT_EQ(3, model.count_to_new_tab_takeover_wallpaper_for_testing());
 
   // We expect to be reset to initial count when source data updates (which
   // calls Reset).
   model.Reset();
-  EXPECT_EQ(1, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_EQ(1, model.count_to_new_tab_takeover_wallpaper_for_testing());
 }
 
-TEST_F(ViewCounterModelTest, NTPSponsoredImagesCountResetMinTest) {
+TEST_F(ViewCounterModelTest, NTPSponsoredContentCountResetMinTest) {
   ViewCounterModel model(prefs());
   model.SetCampaignsTotalNewTabTakeoverCreativeCount(
       kTestCampaignsTotalImageCount);
 
   // Verify param value for initial count was used
-  EXPECT_EQ(1, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_EQ(1, model.count_to_new_tab_takeover_wallpaper_for_testing());
   model.RegisterPageView();
-  EXPECT_TRUE(model.ShouldShowSponsoredImages());
-  EXPECT_EQ(0, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_TRUE(model.ShouldShowNewTabTakeover());
+  EXPECT_EQ(0, model.count_to_new_tab_takeover_wallpaper_for_testing());
 
   // We expect to be reset to initial count only if
   // count_to_new_tab_takeover_wallpaper_ is higher than initial count.
   model.Reset();
-  EXPECT_TRUE(model.ShouldShowSponsoredImages());
-  EXPECT_EQ(0, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_TRUE(model.ShouldShowNewTabTakeover());
+  EXPECT_EQ(0, model.count_to_new_tab_takeover_wallpaper_for_testing());
 }
 
-TEST_F(ViewCounterModelTest, NTPSponsoredImagesCountResetTimerTest) {
+TEST_F(ViewCounterModelTest, NTPSponsoredContentCountResetTimerTest) {
   ViewCounterModel model(prefs());
   model.SetCampaignsTotalNewTabTakeoverCreativeCount(
       kTestCampaignsTotalImageCount);
 
   // Verify param value for initial count was used
-  EXPECT_EQ(1, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_EQ(1, model.count_to_new_tab_takeover_wallpaper_for_testing());
   model.RegisterPageView();
-  EXPECT_TRUE(model.ShouldShowSponsoredImages());
+  EXPECT_TRUE(model.ShouldShowNewTabTakeover());
   model.RegisterPageView();
-  EXPECT_FALSE(model.ShouldShowSponsoredImages());
-  EXPECT_EQ(3, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_FALSE(model.ShouldShowNewTabTakeover());
+  EXPECT_EQ(3, model.count_to_new_tab_takeover_wallpaper_for_testing());
 
   // Verify Sponsored Images count is reset after specific time.
   task_environment_.FastForwardBy(features::kResetCounterAfter.Get());
-  EXPECT_EQ(1, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_EQ(1, model.count_to_new_tab_takeover_wallpaper_for_testing());
   model.RegisterPageView();
-  EXPECT_TRUE(model.ShouldShowSponsoredImages());
+  EXPECT_TRUE(model.ShouldShowNewTabTakeover());
   model.RegisterPageView();
-  EXPECT_FALSE(model.ShouldShowSponsoredImages());
-  EXPECT_EQ(3, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_FALSE(model.ShouldShowNewTabTakeover());
+  EXPECT_EQ(3, model.count_to_new_tab_takeover_wallpaper_for_testing());
 
   // Verify next count reset timer is scheduled and count is reset after
   // specific time.
   task_environment_.FastForwardBy(features::kResetCounterAfter.Get());
-  EXPECT_EQ(1, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_EQ(1, model.count_to_new_tab_takeover_wallpaper_for_testing());
 }
 
 TEST_F(ViewCounterModelTest, NTPBackgroundImagesTest) {
@@ -223,8 +204,8 @@ TEST_F(ViewCounterModelTest, NTPBackgroundImagesTest) {
   // Loading initial count times. Each page view selects a background image at
   // random, so verify the model adopts exactly the index returned by the RNG
   // and that the RNG is queried for the full image range.
-  for (int i = 0; i < features::kInitialCountToBrandedWallpaper.Get() - 1;
-       ++i) {
+  for (int i = 0;
+       i < features::kInitialCountToNewTabTakeoverWallpaper.Get() - 1; ++i) {
     next_background_image_index_ = (i + 1) % static_cast<int>(kTestImageCount);
     model.RegisterPageView();
     EXPECT_EQ(0, last_rand_min_);
@@ -237,7 +218,8 @@ TEST_F(ViewCounterModelTest, NTPBackgroundImagesTest) {
   model.RegisterPageView();
 
   // Loading regular-count times.
-  for (int i = 0; i < features::kCountToBrandedWallpaper.Get() - 1; ++i) {
+  for (int i = 0; i < features::kCountToNewTabTakeoverWallpaper.Get() - 1;
+       ++i) {
     next_background_image_index_ = (i + 2) % static_cast<int>(kTestImageCount);
     model.RegisterPageView();
     EXPECT_EQ(next_background_image_index_,
@@ -245,13 +227,13 @@ TEST_F(ViewCounterModelTest, NTPBackgroundImagesTest) {
   }
 
   // It's time for the sponsored image.
-  EXPECT_EQ(0, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_EQ(0, model.count_to_new_tab_takeover_wallpaper_for_testing());
   const int image_index = model.current_wallpaper_image_index();
   model.RegisterPageView();
 
   // Check bg image index is not changed if the sponsored image is shown.
   // Only |count_to_new_tab_takeover_wallpaper_| is reset.
-  EXPECT_NE(0, model.count_to_new_tab_takeover_wallpaper_);
+  EXPECT_NE(0, model.count_to_new_tab_takeover_wallpaper_for_testing());
   EXPECT_EQ(image_index, model.current_wallpaper_image_index());
 }
 
@@ -266,11 +248,7 @@ TEST_F(ViewCounterModelTest,
       kTestCampaignsTotalImageCount);
   InstallDeterministicBackgroundRng(&model);
 
-  // Check the New Tab Takeover creative index is not modified when only
-  // background images are used.
   model.set_show_new_tab_takeover_wallpaper(false);
-  const auto initial_new_tab_takeover_creative_index =
-      model.GetCurrentNewTabTakeoverCampaignAndCreativeIndex();
 
   constexpr int kTestPageViewCount = 30;
   for (int i = 0; i < kTestPageViewCount; ++i) {
@@ -281,10 +259,6 @@ TEST_F(ViewCounterModelTest,
     // adopts exactly the index returned by the RNG.
     EXPECT_EQ(next_background_image_index_,
               model.current_wallpaper_image_index());
-
-    // Check the New Tab Takeover creative index is not changed.
-    EXPECT_EQ(initial_new_tab_takeover_creative_index,
-              model.GetCurrentNewTabTakeoverCampaignAndCreativeIndex());
   }
 
   // Disable background image and check its count is not changed.
@@ -306,7 +280,7 @@ TEST_F(ViewCounterModelTest, NTPBackgroundImagesWithEmptyCampaignTest) {
   model.Reset();
   model.set_total_image_count(kTestImageCount);
   model.set_show_new_tab_takeover_wallpaper(true);
-  model.count_to_new_tab_takeover_wallpaper_ = 0;
+  model.set_count_to_new_tab_takeover_wallpaper_for_testing(0);
   InstallDeterministicBackgroundRng(&model);
 
   constexpr int kTestPageViewCount = 30;
@@ -330,14 +304,14 @@ TEST_F(ViewCounterModelTest, NTPFailedToLoadSponsoredImagesTest) {
 
   // Loading initial count model. Each page view selects a background image at
   // random, so verify the model adopts exactly the index returned by the RNG.
-  for (int i = 0; i < features::kInitialCountToBrandedWallpaper.Get() - 1;
-       ++i) {
+  for (int i = 0;
+       i < features::kInitialCountToNewTabTakeoverWallpaper.Get() - 1; ++i) {
     next_background_image_index_ = (i + 1) % static_cast<int>(kTestImageCount);
     model.RegisterPageView();
     EXPECT_EQ(next_background_image_index_,
               model.current_wallpaper_image_index());
   }
-  EXPECT_TRUE(model.ShouldShowSponsoredImages());
+  EXPECT_TRUE(model.ShouldShowNewTabTakeover());
 
   // Simulate that the sponsored image ad was frequency capped by the ads
   // service. If |count_to_new_tab_takeover_wallpaper_| is zero when

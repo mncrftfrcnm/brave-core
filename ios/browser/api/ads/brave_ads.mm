@@ -327,13 +327,19 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
   nw_path_monitor_set_queue(networkMonitor, monitorQueue);
   nw_path_monitor_set_update_handler(
       networkMonitor, ^(nw_path_t _Nonnull path) {
-        const auto strongSelf = weakSelf;
-        if (!strongSelf) {
-          return;
-        }
-        strongSelf.networkConnectivityAvailable =
+        const BOOL networkConnectivityAvailable =
             (nw_path_get_status(path) == nw_path_status_satisfied ||
              nw_path_get_status(path) == nw_path_status_satisfiable);
+        // Ensure `dealloc`, which destroys sequence-checked members, can
+        // only run on the main sequence.
+        dispatch_async(dispatch_get_main_queue(), ^{
+          const auto strongSelf = weakSelf;
+          if (!strongSelf) {
+            return;
+          }
+          strongSelf.networkConnectivityAvailable =
+              networkConnectivityAvailable;
+        });
       });
   nw_path_monitor_start(networkMonitor);
 }
@@ -408,15 +414,21 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
 - (void)saveComponentUpdaterPrefs {
   NSDictionary* prefs = [self.componentUpdaterPrefs copy];
   NSString* path = [[self componentUpdaterPrefsPath] copy];
-  dispatch_group_enter(self.componentUpdaterPrefsWriteGroup);
+  dispatch_group_t prefsWriteGroup = self.componentUpdaterPrefsWriteGroup;
+  dispatch_group_enter(prefsWriteGroup);
+  const auto __weak weakSelf = self;
   dispatch_async(self.componentUpdaterPrefsWriteThread, ^{
     NSError* error = nil;
     [prefs writeToURL:[NSURL fileURLWithPath:path isDirectory:NO] error:&error];
     if (error) {
-      BLOG(0, @"Failed to write component updater prefs: %@", error);
+      [weakSelf logFailedToWriteComponentUpdaterPrefs:error];
     }
-    dispatch_group_leave(self.componentUpdaterPrefsWriteGroup);
+    dispatch_group_leave(prefsWriteGroup);
   });
+}
+
+- (void)logFailedToWriteComponentUpdaterPrefs:(NSError*)error {
+  BLOG(0, @"Failed to write component updater prefs: %@", error);
 }
 
 - (NSDictionary*)componentUpdaterMetadata {

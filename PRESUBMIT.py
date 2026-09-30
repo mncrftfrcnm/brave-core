@@ -136,7 +136,7 @@ def CheckTypeScriptSuppressionsHaveReasons(input_api, output_api):
 
 
 # Check and fix formatting issues (supports --fix).
-def CheckPatchFormatted(input_api, output_api):
+def CheckPatchFormattedBrave(input_api, output_api):
     cmd = [
         brave_chromium_utils.wspath(
             '//brave/build/commands/scripts/format.ts'), '--presubmit'
@@ -219,12 +219,49 @@ def CheckPylint(input_api, output_api):
     disabled_warnings = [
         'import-outside-toplevel',
         'line-too-long',
+        # Kept off from pylintrc-2.7, which pylintrc-3.2 would enable.
+        'anomalous-backslash-in-string',
+        'bad-indentation',
+        'cell-var-from-loop',
+        'deprecated-method',
+        'deprecated-module',
+        'duplicate-code',
+        'eval-used',
+        'function-redefined',
+        'missing-module-docstring',
+        'no-self-argument',
+        'not-an-iterable',
+        'not-callable',
+        'protected-access',
+        'singleton-comparison',
+        'superfluous-parens',
+        'trailing-whitespace',
+        'undefined-variable',
+        'unused-import',
+        # New or broadened since pylint 2.7; to be fixed and re-enabled.
+        'comparison-of-constants',
+        'consider-using-dict-items',
+        'consider-using-from-import',
+        'consider-using-in',
+        'consider-using-max-builtin',
+        'consider-using-with',
+        'global-variable-not-assigned',
+        'unnecessary-dunder-call',
+        'unnecessary-lambda-assignment',
+        'unnecessary-list-index-lookup',
+        'unspecified-encoding',
+        'use-dict-literal',
+        'use-implicit-booleaness-not-comparison',
+        'use-implicit-booleaness-not-len',
+        'use-maxsplit-arg',
+        'useless-option-value',
     ]
     return input_api.canned_checks.RunPylint(
         input_api,
         output_api,
         extra_paths_list=extra_paths_list,
-        disabled_warnings=disabled_warnings)
+        disabled_warnings=disabled_warnings,
+        version='3.2')
 
 
 def CheckLicense(input_api, output_api):
@@ -643,8 +680,15 @@ def CheckPlasterFiles(input_api, output_api):
     if not affected_files:
         return []
 
-    cmd = [input_api.python3_executable, 'tools/cr/plaster.py', 'check'
-           ] + affected_files
+    # Pass the paths through a response file, as a large change (e.g. a
+    # Chromium rebase) exceeds the Windows command line length limit.
+    with input_api.CreateTemporaryFile(mode='w', suffix='.txt') as f:
+        f.write('\n'.join(affected_files))
+
+    cmd = [
+        input_api.python3_executable, 'tools/cr/plaster.py', 'check',
+        f'@{f.name}'
+    ]
     kwargs = {'cwd': input_api.PresubmitLocalPath()}
     return input_api.RunTests([
         input_api.Command(name='plaster_check',

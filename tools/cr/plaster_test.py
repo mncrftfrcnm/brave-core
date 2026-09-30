@@ -3168,6 +3168,59 @@ class RewriterFormsTest(unittest.TestCase):
             result, 'C::C() : x_(1) {\n  [&]() -> void {\n  Init();\n  }();\n'
             '  BraveInit();\n}\n')
 
+    def test_after_function_impl_lambda_return_type_overrides_capture(self):
+        # The body only ever returns the derived type, so naming it binds
+        # `result_var` to that instead of the declared base -- the appended
+        # code reaches the derived API without casting, and the final return
+        # still converts to what the function declares.
+        result = self._apply(
+            'append_override.cc', 'std::unique_ptr<Base> Build() {\n'
+            '  return std::make_unique<Derived>();\n}\n', 'substitutions:\n'
+            '  - description: initialise the Brave bits on the built object\n'
+            '    after_function_impl:\n'
+            '      function_name: Build\n'
+            '      result_var: built\n'
+            '      lambda_return_type: std::unique_ptr<Derived>\n'
+            '      code: |-\n'
+            '        built->InitBrave();\n'
+            '        return built;\n')
+        self.assertEqual(
+            result, 'std::unique_ptr<Base> Build() {\n'
+            '  std::unique_ptr<Derived> built = [&]()'
+            ' -> std::unique_ptr<Derived> {\n'
+            '  return std::make_unique<Derived>();\n  }();\n'
+            '  built->InitBrave();\n  return built;\n}\n')
+
+    def test_after_function_impl_lambda_return_type_without_result_var(self):
+        # The override types the lambda even with nothing bound to its value.
+        result = self._apply(
+            'append_override_void.cc',
+            'const Base& C::Get() const {\n  return derived_;\n}\n',
+            'substitutions:\n'
+            '  - description: narrow the wrapped return\n'
+            '    after_function_impl:\n'
+            '      function_name: C::Get\n'
+            '      lambda_return_type: const Derived&\n'
+            '      code: |-\n'
+            '        BraveNote();\n')
+        self.assertEqual(
+            result, 'const Base& C::Get() const {\n'
+            '  [&]() -> const Derived& {\n  return derived_;\n  }();\n'
+            '  BraveNote();\n}\n')
+
+    def test_after_function_impl_empty_lambda_return_type_rejected(self):
+        # An empty override states nothing; omit the field to deduce instead.
+        self._expect_value_error(
+            'substitutions:\n'
+            '  - description: an empty override states nothing\n'
+            '    after_function_impl:\n'
+            '      function_name: C::Compute\n'
+            "      lambda_return_type: ''\n"
+            '      code: |-\n'
+            '        Brave();\n',
+            'after_function_impl `lambda_return_type` must be a non-empty '
+            'string')
+
     def test_after_function_impl_wraps_early_returns(self):
         # Every `return` in the upstream body only returns from the lambda, so
         # the appended code still runs. The body's own lines are untouched.
@@ -4716,6 +4769,76 @@ class RewriterFormsTest(unittest.TestCase):
                 '      type: action\n')
         self.assertIn('found no body for target', str(ctx.exception))
 
+    # Two templates each declaring an `action(target_name)`, the second one
+    # inside an `if`, which `type:` alone cannot tell apart.
+    _TWO_TEMPLATES = ('template("collect") {\n'
+                      '  action(target_name) {\n    deps = []\n  }\n}\n\n'
+                      'template("generate") {\n  if (is_win) {\n'
+                      '    action(target_name) {\n      deps = []\n    }\n'
+                      '  }\n}\n')
+
+    def test_add_literal_to_list_template_picks_a_template_apart(self):
+        # The template is named, so the append lands in its action -- found
+        # inside the `if` -- and not in the other template's.
+        result = self._apply(
+            'template_scope.gni', self._TWO_TEMPLATES, 'substitutions:\n'
+            '  - description: add to the generate action only\n'
+            '    add_literal_to_list:\n'
+            '      target: target_name\n'
+            '      type: action\n'
+            '      template: generate\n'
+            '      list_name: deps\n'
+            '      literal: brave_deps\n')
+        self.assertEqual(
+            result, 'template("collect") {\n'
+            '  action(target_name) {\n    deps = []\n  }\n}\n\n'
+            'template("generate") {\n  if (is_win) {\n'
+            '    action(target_name) {\n      deps = []\n'
+            '      deps += brave_deps\n    }\n  }\n}\n')
+
+    def test_add_literal_to_list_two_templates_need_template(self):
+        # Without it the two declarations are ambiguous, and the refusal names
+        # the field that resolves them.
+        with self.assertRaises(plaster.PlasterApplyError) as ctx:
+            self._apply(
+                'template_ambiguous.gni', self._TWO_TEMPLATES,
+                'substitutions:\n'
+                '  - description: ambiguous across templates\n'
+                '    add_literal_to_list:\n'
+                '      target: target_name\n'
+                '      type: action\n'
+                '      list_name: deps\n'
+                '      literal: brave_deps\n')
+        message = str(ctx.exception)
+        self.assertIn('found 2 declarations of target', message)
+        self.assertIn('`template:`', message)
+
+    def test_add_literal_to_list_template_leaves_other_targets_out(self):
+        # A target outside the named template is not a candidate at all.
+        with self.assertRaises(plaster.PlasterApplyError) as ctx:
+            self._apply(
+                'template_outside.gn', 'source_set("b") {\n  deps = []\n}\n',
+                'substitutions:\n'
+                '  - description: target is not in that template\n'
+                '    add_literal_to_list:\n'
+                '      target: b\n'
+                '      template: generate\n'
+                '      list_name: deps\n'
+                '      literal: brave_deps\n')
+        self.assertIn('found no body for target', str(ctx.exception))
+
+    def test_add_literal_to_list_empty_template_rejected(self):
+        self._expect_value_error(
+            'substitutions:\n'
+            '  - description: blank template\n'
+            '    add_literal_to_list:\n'
+            '      target: target_name\n'
+            '      list_name: deps\n'
+            '      literal: brave_deps\n'
+            "      template: ''\n",
+            'add_literal_to_list `template` must be a non-empty string',
+            name='validation.gni')
+
     def test_add_literal_to_list_ambiguous_target_names_type(self):
         # The refusal points at the field that resolves it.
         with self.assertRaises(plaster.PlasterApplyError) as ctx:
@@ -4840,6 +4963,23 @@ class RewriterFormsTest(unittest.TestCase):
             self._GN_HEADER + 'import("//brave/utility/sources.gni")\n\n'
             'source_set("utility") {\n  sources = [ "u.cc" ]\n'
             '  sources += brave_utility_sources\n}\n')
+
+    def test_append_to_target_template_picks_a_template_apart(self):
+        result = self._apply(
+            'append_template.gni', self._TWO_TEMPLATES, 'substitutions:\n'
+            '  - description: append to the collect action only\n'
+            '    append_to_target:\n'
+            '      target: target_name\n'
+            '      type: action\n'
+            '      template: collect\n'
+            '      code: deps += brave_deps\n')
+        self.assertEqual(
+            result, 'template("collect") {\n'
+            '  action(target_name) {\n    deps = []\n'
+            '    deps += brave_deps\n  }\n}\n\n'
+            'template("generate") {\n  if (is_win) {\n'
+            '    action(target_name) {\n      deps = []\n    }\n'
+            '  }\n}\n')
 
     def test_append_to_target_type_picks_a_declaration_apart(self):
         result = self._apply(
@@ -6149,6 +6289,43 @@ class RewritersEvalTest(unittest.TestCase):
             rewriter['replace']['replace'] = 'virtual {return_type} '
 
         self._assert_invalid(mutate, 'shadow')
+
+    # -- capture overrides --------------------------------------------------
+
+    def test_rewriter_may_override_a_capture(self):
+        # An override is how a caller supplies a capture's value itself. The
+        # name stays out of `inputs`, which may not shadow a capture, so
+        # listing it here is the whole declaration.
+        spec = self._with_capture(self._valid_spec())
+        rewriter = spec['ast.rewriter']['cxx.make_virtual']
+        rewriter['capture_overrides'] = ['return_type']
+        rewriter['replace']['replace'] = 'virtual {return_type} '
+        rewriters = plaster.RewritersEval(repr(spec))
+        self.assertEqual(
+            rewriters.rewriter('cxx.make_virtual')['capture_overrides'],
+            ['return_type'])
+
+    def test_rewriter_capture_override_must_name_a_capture(self):
+        # Overriding anything the matcher does not produce is a value no
+        # caller could ever supply.
+        def mutate(spec):
+            self._with_capture(spec)
+            rewriter = spec['ast.rewriter']['cxx.make_virtual']
+            rewriter['capture_overrides'] = ['nope']
+            rewriter['replace']['replace'] = 'virtual {return_type} '
+
+        self._assert_invalid(mutate, 'does not produce')
+
+    def test_rewriter_capture_override_must_be_used(self):
+        # No template renders `{return_type}`, so an override for it could
+        # never reach the output.
+        def mutate(spec):
+            self._with_capture(spec)
+            spec['ast.rewriter']['cxx.make_virtual']['capture_overrides'] = [
+                'return_type'
+            ]
+
+        self._assert_invalid(mutate, 'never used')
 
     # -- optional inputs (`when_set`) ---------------------------------------
 
@@ -7904,6 +8081,19 @@ class RegexMacroEngineTest(unittest.TestCase):
         self.assertEqual(matches, 1)
         self.assertEqual(engine.content, '[foo] bar')
 
+    def test_backslashes_in_replace_inputs_are_inserted_verbatim(self):
+        # A C string escape in an input must not be read by `re.subn` as a
+        # newline or a backreference.
+        rewriters = self._rewriters({
+            'inputs': ['name', 'value'],
+            're_pattern': '{name}',
+            'replace': '{value}',
+        })
+        engine = plaster.RegexMacroEngine(rewriters, 'foo')
+        engine.run('cxx.rename_constant', {'name': 'foo', 'value': r'"a\n\1"'})
+        self.assertEqual(engine.content, r'"a\n\1"')
+
+
     def test_missing_input_raises(self):
         rewriters = self._rewriters({
             'inputs': ['old_name', 'new_name'],
@@ -8397,6 +8587,160 @@ class OverrideFeatureDefaultStateTest(unittest.TestCase):
                     'value': 'base::FEATURE_ENABLED_BY_DEFAULT',
                     'extra': 'x',
                 })
+
+
+class AllInsertionMacrosTest(unittest.TestCase):
+    """Exercises the shipped `all.` line insertion macros."""
+
+    def setUp(self):
+        self.rewriters = plaster.RewritersEval.load()
+
+    def _run(self, op_id: str, source: str, **inputs) -> tuple[int, str]:
+        engine = plaster.RegexMacroEngine(self.rewriters, source)
+        matches = engine.run(op_id, inputs)
+        return matches, engine.content
+
+    # -- add_after_line ------------------------------------------------------
+
+    def test_add_after_line(self):
+        matches, content = self._run('all.add_after_line',
+                                     '#include "a.h"\n#include "c.h"\n',
+                                     line='#include "a.h"',
+                                     code='#include "b.h"')
+        self.assertEqual(matches, 1)
+        self.assertEqual(content,
+                         '#include "a.h"\n#include "b.h"\n#include "c.h"\n')
+
+    def test_add_after_line_ignores_indentation(self):
+        matches, content = self._run('all.add_after_line',
+                                     '{\n  Foo();  \n}\n',
+                                     line='Foo();',
+                                     code='  Bar();')
+        self.assertEqual(matches, 1)
+        self.assertEqual(content, '{\n  Foo();  \n  Bar();\n}\n')
+
+    def test_add_after_line_on_last_line_without_newline(self):
+        matches, content = self._run('all.add_after_line',
+                                     'a\nb',
+                                     line='b',
+                                     code='c')
+        self.assertEqual(matches, 1)
+        self.assertEqual(content, 'a\nb\nc\n')
+
+    def test_add_after_line_requires_the_whole_line(self):
+        matches, content = self._run('all.add_after_line',
+                                     'Foo(); // x\nFoo2();\n',
+                                     line='Foo();',
+                                     code='Bar();')
+        self.assertEqual(matches, 0)
+        self.assertEqual(content, 'Foo(); // x\nFoo2();\n')
+
+    def test_add_after_line_matches_every_occurrence(self):
+        matches, content = self._run('all.add_after_line',
+                                     'a\nb\na\n',
+                                     line='a',
+                                     code='x')
+        self.assertEqual(matches, 2)
+        self.assertEqual(content, 'a\nx\nb\na\nx\n')
+
+    # -- add_before_line -----------------------------------------------------
+
+    def test_add_before_line(self):
+        matches, content = self._run('all.add_before_line',
+                                     '{\n  Foo();\n}\n',
+                                     line='Foo();',
+                                     code='  Bar();')
+        self.assertEqual(matches, 1)
+        self.assertEqual(content, '{\n  Bar();\n  Foo();\n}\n')
+
+    def test_add_before_first_line(self):
+        matches, content = self._run('all.add_before_line',
+                                     'a\nb\n',
+                                     line='a',
+                                     code='x')
+        self.assertEqual(matches, 1)
+        self.assertEqual(content, 'x\na\nb\n')
+
+    # -- add_after_copyright_notice ------------------------------------------
+
+    def test_add_after_copyright_notice(self):
+        matches, content = self._run(
+            'all.add_after_copyright_notice',
+            '# Copyright 2014 The Chromium Authors\n'
+            '# found in the LICENSE file.\n'
+            '\n'
+            'import("//base/allocator/allocator.gni")\n',
+            code='import("//brave/browser/sources.gni")')
+        self.assertEqual(matches, 1)
+        self.assertEqual(
+            content, '# Copyright 2014 The Chromium Authors\n'
+            '# found in the LICENSE file.\n'
+            '\n'
+            'import("//brave/browser/sources.gni")\n'
+            '\n'
+            'import("//base/allocator/allocator.gni")\n')
+
+    def test_add_after_copyright_notice_with_slash_comments(self):
+        matches, content = self._run('all.add_after_copyright_notice',
+                                     '// Copyright 2016 The Chromium Authors\n'
+                                     '// found in the LICENSE file.\n'
+                                     '\n'
+                                     '#include "a.h"\n',
+                                     code='#include "brave/b.h"')
+        self.assertEqual(matches, 1)
+        self.assertEqual(
+            content, '// Copyright 2016 The Chromium Authors\n'
+            '// found in the LICENSE file.\n'
+            '\n'
+            '#include "brave/b.h"\n'
+            '\n'
+            '#include "a.h"\n')
+
+    def test_add_after_copyright_notice_spans_a_shebang(self):
+        matches, content = self._run(
+            'all.add_after_copyright_notice',
+            '#!/usr/bin/env python3\n#\n# Copyright 2013\n\nimport os\n',
+            code='import brave')
+        self.assertEqual(matches, 1)
+        self.assertEqual(
+            content, '#!/usr/bin/env python3\n#\n# Copyright 2013\n\n'
+            'import brave\n\nimport os\n')
+
+    def test_add_after_copyright_notice_spans_a_block_comment(self):
+        matches, content = self._run(
+            'all.add_after_copyright_notice',
+            '/* Copyright 2014\n * found in the LICENSE file. */\n\na {}\n',
+            code='b {}')
+        self.assertEqual(matches, 1)
+        self.assertEqual(
+            content, '/* Copyright 2014\n * found in the LICENSE file. */\n\n'
+            'b {}\n\na {}\n')
+
+    def test_add_after_copyright_notice_requires_a_leading_notice(self):
+        source = 'int x;\n\n// Copyright 2014\n'
+        matches, content = self._run('all.add_after_copyright_notice',
+                                     source,
+                                     code='int y;')
+        self.assertEqual(matches, 0)
+        self.assertEqual(content, source)
+
+    # -- add_at_end_of_the_file ----------------------------------------------
+
+    def test_add_at_end_of_the_file(self):
+        for source in ('a\n', 'a'):
+            with self.subTest(source=source):
+                matches, content = self._run('all.add_at_end_of_the_file',
+                                             source,
+                                             code='b')
+                self.assertEqual(matches, 1)
+                self.assertEqual(content, 'a\nb\n')
+
+    def test_add_at_end_of_the_file_after_a_blank_line(self):
+        matches, content = self._run('all.add_at_end_of_the_file',
+                                     'a\n\n',
+                                     code='b')
+        self.assertEqual(matches, 1)
+        self.assertEqual(content, 'a\n\nb\n')
 
 
 class DeclaredInputsTest(unittest.TestCase):
@@ -9279,6 +9623,7 @@ class GnEditDispatchTest(unittest.TestCase):
             'BUILD.gn', 'source_set("a") {\n'
             '  deps = []\n'
             '}\n'
+            '\n'
             'source_set("b") {\n'
             '  deps = []\n'
             '}\n', 'substitutions:\n'
@@ -9291,6 +9636,7 @@ class GnEditDispatchTest(unittest.TestCase):
             result, 'source_set("a") {\n'
             '  deps = [ "//brave/a" ]\n'
             '}\n'
+            '\n'
             'source_set("b") {\n'
             '  deps = []\n'
             '}\n')

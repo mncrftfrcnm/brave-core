@@ -86,7 +86,7 @@ import {
 import { PortfolioAssetItem } from '$wallet/page/components/portfolio_asset_item/portfolio_asset_item'
 import {
   AccountDetailsHeader, //
-} from '../../../components/desktop/card-headers/account-details-header'
+} from '$wallet/page/components/card_headers/account_details_header'
 import {
   SegmentedControl, //
 } from '../../../components/shared/segmented_control/segmented_control'
@@ -125,7 +125,7 @@ import {
 } from '../../../components/desktop/popup-modals/transaction_details_modal/transaction_details_modal'
 import {
   ZCashMigrationBanner, //
-} from '../../../components/desktop/banners/zcash_migration_banner/zcash_migration_banner'
+} from '$wallet/page/components/banners/zcash_migration_banner/zcash_migration_banner'
 
 // options
 import { AccountDetailsOptions } from '../../../options/nav-options'

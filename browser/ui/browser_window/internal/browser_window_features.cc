@@ -128,15 +128,19 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 #endif
 
   brave_shields_ui_contents_cache_ =
-      std::make_unique<BraveShieldsUIContentsCache>();
+      GetUserDataFactory().CreateInstance<BraveShieldsUIContentsCache>(
+          *browser, browser->GetUnownedUserDataHost());
 
   brave_non_client_hit_test_helper_ =
-      std::make_unique<BraveNonClientHitTestHelper>();
+      GetUserDataFactory().CreateInstance<BraveNonClientHitTestHelper>(
+          *browser, browser->GetUnownedUserDataHost());
 
   if (base::FeatureList::IsEnabled(tabs::kBraveTreeTab) &&
       browser->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL) {
-    tree_tab_session_manager_ = std::make_unique<TreeTabSessionManager>(
-        profile, browser->GetTabStripModel(), browser->GetSessionID());
+    tree_tab_session_manager_ =
+        GetUserDataFactory().CreateInstance<TreeTabSessionManager>(
+            *browser, browser->GetUnownedUserDataHost(), profile,
+            browser->GetTabStripModel(), browser->GetSessionID());
   }
 }
 
@@ -178,31 +182,36 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
             []() -> base::flat_map<base::UnguessableToken, int>& {
               return printing::PrintPreviewUI::GetPrintPreviewUIRequestIdMap();
             }));
-    screenshot_controller_ = std::make_unique<screenshot::ScreenshotController>(
-        browser_view->GetProfile(),
-        base::BindRepeating(
-            [](BrowserView* bv) -> gfx::NativeWindow {
-              return bv->GetNativeWindow();
-            },
-            browser_view),
-        base::BindRepeating(&screenshot::ShowScreenshotPreviewDialog),
-        std::move(extractor));
+    screenshot_controller_ =
+        GetUserDataFactory().CreateInstance<screenshot::ScreenshotController>(
+            *browser_, browser_->GetUnownedUserDataHost(),
+            browser_view->GetProfile(),
+            base::BindRepeating(
+                [](BrowserView* bv) -> gfx::NativeWindow {
+                  return bv->GetNativeWindow();
+                },
+                browser_view),
+            base::BindRepeating(&screenshot::ShowScreenshotPreviewDialog),
+            std::move(extractor));
   }
 #else
-  screenshot_controller_ = std::make_unique<screenshot::ScreenshotController>(
-      browser_view->GetProfile(),
-      base::BindRepeating(
-          [](BrowserView* bv) -> gfx::NativeWindow {
-            return bv->GetNativeWindow();
-          },
-          browser_view),
-      base::BindRepeating(&screenshot::ShowScreenshotPreviewDialog));
+  screenshot_controller_ =
+      GetUserDataFactory().CreateInstance<screenshot::ScreenshotController>(
+          *browser_, browser_->GetUnownedUserDataHost(),
+          browser_view->GetProfile(),
+          base::BindRepeating(
+              [](BrowserView* bv) -> gfx::NativeWindow {
+                return bv->GetNativeWindow();
+              },
+              browser_view),
+          base::BindRepeating(&screenshot::ShowScreenshotPreviewDialog));
 #endif
 
   if (base::FeatureList::IsEnabled(features::kWorkspaces) &&
       browser_->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL) {
     workspaces_bubble_controller_ =
-        std::make_unique<WorkspacesBubbleController>();
+        GetUserDataFactory().CreateInstance<WorkspacesBubbleController>(
+            *browser_, browser_->GetUnownedUserDataHost());
   }
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
@@ -212,7 +221,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
       ai_chat::AIChatServiceFactory::GetForBrowserContext(
           browser_->GetProfile())) {
     ai_chat_side_panel_tab_transfer_bridge_ =
-        std::make_unique<AIChatSidePanelTabTransferBridge>(browser_);
+        GetUserDataFactory().CreateInstance<AIChatSidePanelTabTransferBridge>(
+            *browser_, browser_);
   }
 #endif
 

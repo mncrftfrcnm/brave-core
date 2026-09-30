@@ -29,9 +29,14 @@ void FakeNTPBackgroundImagesService::RegisterSponsoredImagesComponent() {
   ++register_sponsored_images_component_call_count_;
 }
 
+void FakeNTPBackgroundImagesService::UnregisterSponsoredImagesComponent() {
+  NTPBackgroundImagesService::UnregisterSponsoredImagesComponent();
+  ++unregister_sponsored_images_component_call_count_;
+}
+
 void FakeNTPBackgroundImagesService::OnGetSponsoredComponentJsonData(
     const std::string& json) {
-  sponsored_images_installed_dir_ =
+  sponsored_content_installed_dir_ =
       base::FilePath::FromASCII("fake_sponsored_images_installed_dir");
   NTPBackgroundImagesService::OnHandledSponsoredComponentData(
       base::JSONReader::ReadDict(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS));

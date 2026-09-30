@@ -168,14 +168,10 @@
 #include "brave/browser/ui/webui/brave_shields/shields_panel_ui.h"
 #include "brave/browser/ui/webui/brave_welcome_page/brave_welcome_page.mojom.h"
 #include "brave/browser/ui/webui/brave_welcome_page/brave_welcome_page_ui.h"
-#include "brave/browser/ui/webui/history/brave_history_ui.h"
 #include "brave/browser/ui/webui/new_tab_page/brave_new_tab_ui.h"
 #include "brave/browser/ui/webui/private_new_tab_page/brave_private_new_tab_ui.h"
 #include "brave/components/brave_new_tab_ui/brave_new_tab_page.mojom.h"
 #include "brave/components/brave_private_new_tab_ui/common/brave_private_new_tab.mojom.h"
-#if BUILDFLAG(ENABLE_LOCAL_AI)
-#include "brave/browser/ui/webui/history/brave_history_embeddings.mojom.h"
-#endif
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_LOCAL_AI)
@@ -698,7 +694,7 @@ void BraveContentBrowserClient::RegisterTrustedWebUIInterfaceBrokers(
   if (brave_account::features::IsBraveAccountEnabled()) {
     registry.ForWebUI<BraveSettingsUI>()
         .Add<brave_account::mojom::Authentication>()
-        .Add<brave_account::mojom::DialogController>();
+        .Add<brave_account::mojom::DialogOpener>();
   }
   registry.ForWebUI<BraveSettingsUI>()
       .Add<brave_origin::mojom::BraveOriginSettingsHandler>();
@@ -750,6 +746,12 @@ void BraveContentBrowserClient::RegisterTrustedWebUIInterfaceBrokers(
       .Add<brave_rewards::mojom::RewardsPageHandler>()
 #endif  // BUILDFLAG(ENABLE_BRAVE_REWARDS)
       ;
+#if BUILDFLAG(ENABLE_SNAP)
+  if (brave_wallet::IsSnapFeatureEnabled()) {
+    registry.ForWebUI<brave_wallet::WalletPageUI>()
+        .Add<brave_wallet::mojom::SnapService>();
+  }
+#endif  // BUILDFLAG(ENABLE_SNAP)
 #if !BUILDFLAG(IS_ANDROID)
   registry.ForWebUI<WalletPanelUI>()
       .Add<brave_wallet::mojom::PanelHandlerFactory>()
@@ -771,8 +773,7 @@ void BraveContentBrowserClient::RegisterTrustedWebUIInterfaceBrokers(
 #if BUILDFLAG(ENABLE_BRAVE_NEWS)
           .Add<brave_news::mojom::BraveNewsController>()
 #endif
-          .Add<
-              ntp_background_images::mojom::SponsoredRichMediaAdEventHandler>();
+          .Add<ntp_background_images::mojom::SponsoredContentAdEventHandler>();
 
   auto ntp_registration =
       registry.ForWebUI<BraveNewTabUI>()
@@ -845,6 +846,7 @@ void BraveContentBrowserClient::RegisterTrustedWebUIInterfaceBrokers(
   if (brave_account::features::IsBraveAccountEnabled()) {
     registry.ForWebUI<BraveAccountUIAndroid>()
         .Add<brave_account::mojom::Authentication>()
+        .Add<brave_account::mojom::DialogOpener>()
         .Add<brave_account::mojom::DialogController>()
         .Add<password_strength_meter::mojom::PasswordStrengthMeter>();
   }
@@ -1062,10 +1064,6 @@ void BraveContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-#if BUILDFLAG(ENABLE_LOCAL_AI)
-  content::RegisterWebUIControllerInterfaceBinder<
-      brave_history_embeddings::mojom::PageHandlerFactory, BraveHistoryUI>(map);
-#endif
   content::RegisterWebUIControllerInterfaceBinder<
       brave_private_new_tab::mojom::PageHandler, BravePrivateNewTabUI>(map);
   content::RegisterWebUIControllerInterfaceBinder<
