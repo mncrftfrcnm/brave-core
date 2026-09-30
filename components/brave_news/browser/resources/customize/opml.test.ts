@@ -393,13 +393,12 @@ describe('OPML direct feed asynchronous completion', () => {
     const secondResponse: Response = {
       isValidFeed: false, isDuplicate: false, publishers: null
     }
-    const resolvedRequest = firstResolvesFirst ? first : second
     if (firstResolvesFirst) {
       finishFirst(firstResponse)
     } else {
       finishSecond(secondResponse)
     }
-    await resolvedRequest
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
     expect(completed).toBe(false)
     if (firstResolvesFirst) {
       finishSecond(secondResponse)
